@@ -51,7 +51,7 @@ mach-e2-manual-calib/
   is all-or-nothing; a board touching the frame edge is rejected.
 - **30+ views (around 60 is most likely good)**, varied: different angles, tilts, distances, and positions —
   including the board pushed into **all four corners** of the frame (this is what
-  constrains lens distortion at the edges; see the coverage map in §5).
+  constrains lens distortion at the edges; see the coverage map in §5). Make sure to get pitch and yaw throughout each spot of the picture at different distances.
 - **Lock focus and aperture** on the lens, and calibrate at roughly the working
   distance you'll use. Re-focusing after calibration invalidates the intrinsics.
 
@@ -152,8 +152,8 @@ The `_matlab` outputs sit next to the `_opencv` ones so you can compare them.
 
 ## 6. Reading the results
 
-- **Reprojection error:** aim for **< 0.5 px**, anything **< 1.0 px** is usable.
-  (OpenCV prints RMS; MATLAB prints mean — RMS ≈ 1.13 × mean, so they won't match
+- **Reprojection error:** aim for **< 0.5 px**
+  (OpenCV prints RMS; MATLAB prints mean, so they won't match
   exactly even for an identical calibration.)
 - **Sanity check fx/fy:** for the 4 mm lens at 1920×1200, expect
   **fx ≈ fy ≈ 1160–1190 px** and **cx, cy ≈ 960, 600**. Wildly different values
