@@ -10,9 +10,10 @@ function out = checkerboard_calib_matlab(imageDir, squareSize, pattern)
 %
 % Pass the folder of RAW images (intrinsics/imagesX/raw). Outputs go to its
 % parent (intrinsics/imagesX):
-%   intrinsics_matlab.json    estimated intrinsics (OpenCV-compatible)
-%   coverage_matlab.png       corner-coverage map across all views
-%   detections_matlab/        per-image overlays (ok_*.jpg / skip_*.jpg)
+%   intrinsics_matlab.json     estimated intrinsics (OpenCV-compatible)
+%   coverage_matlab.png        corner-coverage map across all views
+%   board_positions_matlab.png camera-centric 3D distribution of board poses
+%   detections_matlab/         per-image overlays (ok_*.jpg / skip_*.jpg)
 %
 % Notes on MATLAB vs OpenCV (so the two JSONs are comparable):
 %  * MATLAB uses 1-BASED pixel coordinates; OpenCV/COLMAP use 0-based. The
@@ -31,6 +32,7 @@ function out = checkerboard_calib_matlab(imageDir, squareSize, pattern)
     if isempty(outDir), outDir = '.'; end
     savePath     = fullfile(outDir, 'intrinsics_matlab.json');
     coveragePath = fullfile(outDir, 'coverage_matlab.png');
+    boardPosPath = fullfile(outDir, 'board_positions_matlab.png');
     detDir       = fullfile(outDir, 'detections_matlab');
     if ~exist(detDir, 'dir'), mkdir(detDir); end
 
@@ -132,6 +134,17 @@ function out = checkerboard_calib_matlab(imageDir, squareSize, pattern)
     save_coverage(imagePoints, [h w], nUsed, coveragePath);
     fprintf('Coverage map written to: %s\n', coveragePath);
 
+    % --- board-pose distribution (camera-centric) -----------------------
+    % Companion to the coverage map: coverage shows where corners landed in the
+    % IMAGE; this shows where the board was held in SPACE. A good set spans a
+    % range of distances and tilts, not a flat wall of boards at one depth.
+    try
+        save_board_positions(params, nUsed, boardPosPath);
+        fprintf('Board positions written to: %s\n', boardPosPath);
+    catch ME
+        fprintf(2, 'Board-position plot skipped: %s\n', ME.message);
+    end
+
     % --- per-image overlays ---------------------------------------------
     for k = 1:nUsed
         I = imread(usedFiles{k});
@@ -182,4 +195,55 @@ function save_coverage(imagePoints, imgSize, nUsed, path)
     rgb = insertText(rgb, [12 12], sprintf('%d views, %d corners', nUsed, nPts), ...
                      'FontSize', 22, 'BoxColor', 'black', 'TextColor', 'white');
     imwrite(rgb, path);
+end
+
+
+function save_board_positions(params, nUsed, path)
+% Camera-centric 3D distribution of every detected board pose -- the spatial
+% companion to the coverage map. Coverage shows where corners landed in the
+% IMAGE; this shows where the board was held in SPACE.
+%
+% This is MATLAB's own showExtrinsics(params,'CameraCentric') figure: the camera
+% sits at the origin as a blue frustum looking down +Z, and each detected board
+% is drawn as a translucent numbered rectangle at its estimated pose. We let
+% showExtrinsics own the (correct) camera-centric viewpoint instead of rolling
+% our own 3D view, then only relabel the axes from the calibration's WorldUnits
+% (meters) to centimeters -- tick POSITIONS, and hence the geometry, are left
+% untouched.
+
+    origFig = figure('Visible', 'off', 'Color', 'w', 'Position', [100 100 920 660]);
+    set(0, 'CurrentFigure', origFig);
+
+    ax = [];
+    try
+        ax = showExtrinsics(params, 'CameraCentric');   % returns axes (R2017a+)
+    catch
+        % older signatures return nothing; fall back to the current axes
+    end
+    if isempty(ax) || ~all(isgraphics(ax))
+        ax = gca;
+    end
+    fig = ancestor(ax, 'figure');                       % follow showExtrinsics
+
+    title(ax, sprintf('Board position distribution (camera-centric) - %d views', nUsed));
+
+    % meters -> centimeters on the labels only (tick positions/data unchanged)
+    for c = 'XYZ'
+        try
+            ticks = get(ax, [c 'Tick']);
+            set(ax, [c 'TickMode'], 'manual', [c 'Tick'], ticks, ...
+                    [c 'TickLabel'], compose('%g', ticks * 100));
+            set(get(ax, [c 'Label']), 'String', sprintf('%c (centimeters)', c));
+        catch
+            % leave this axis in its native units if anything is unexpected
+        end
+    end
+
+    try
+        exportgraphics(ax, path, 'Resolution', 150);   % R2020a+
+    catch
+        saveas(fig, path);                             % older releases
+    end
+    if isgraphics(fig),     close(fig);     end
+    if ~isequal(fig, origFig) && isgraphics(origFig), close(origFig); end
 end

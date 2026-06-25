@@ -144,9 +144,12 @@ run_checkerboard_calib_matlab
 ### Outputs (written to `intrinsics/imagesX/`)
 - `intrinsics_matlab.json`
 - `coverage_matlab.png`
+- `board_positions_matlab.png` — camera-centric 3D map of every board pose (see §6)
 - `detections_matlab/ok_*.jpg` / `skip_*.jpg`
 
 The `_matlab` outputs sit next to the `_opencv` ones so you can compare them.
+The board-position map is MATLAB-only (it needs the per-view extrinsics that the
+toolbox estimates); the OpenCV path does not emit an equivalent.
 
 ---
 
@@ -162,6 +165,15 @@ The `_matlab` outputs sit next to the `_opencv` ones so you can compare them.
   You want color reaching into **all four frame corners** — that's where the wide
   lens distorts most. If the edges/corners are dark, capture more views with the
   board pushed into those corners and re-run.
+- **Board-position map** (`board_positions_matlab.png`): the camera sits at the
+  origin (blue frustum, looking down +Z) and every detected board is drawn as a
+  translucent numbered rectangle at its estimated pose, in centimeters. Coverage
+  shows where corners landed *in the image*; this shows where the board was held
+  *in space*. You want a **spread of depths and tilts**, not a flat wall of
+  boards all at one distance — varied range and orientation is what makes focal
+  length and distortion observable. The PNG is a fixed snapshot; MATLAB's built-in
+  `showExtrinsics(cameraParams, 'CameraCentric')` renders the same camera-centric
+  view as a live, rotatable figure if you have the `cameraParameters` object.
 
 ---
 
